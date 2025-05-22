@@ -2,8 +2,12 @@ import requests
 import os
 import pandas as pd
 import csv
+from dotenv import load_dotenv 
 
-TOKEN = "rXUI6pZAhOkspirM"
+load_dotenv()
+
+TOKEN = os.getenv("ENSEMBLE_DATA_TOKEN")
+
 csv_path = "twitter_userPost_input.csv"
 
 def read_csv(csv_path):
