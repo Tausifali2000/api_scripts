@@ -1,61 +1,96 @@
 import requests
 import csv
+import os
+import pandas as pd
 
-# Define the API endpoint and parameters
+# Define the API endpoint
 root = "https://ensembledata.com/apis"
-endpoint = "/youtube/hashtag/search"
-params = {
-    "name": "magic",  
-    "depth": 1,
-    "only_shorts": False,
-    "token": "SfFWgfc5TFLgQmWy"  # Replace with your actual token
-}
 
-def fetch_hashtag_data():
-    res = requests.get(root + endpoint, params=params)
-    if res.status_code != 200:
-        print(f"Error fetching data: {res.status_code}")
-        return None
-    return res.json()
+def read_csv(csv_path):
+    try:
+        df = pd.read_csv(csv_path, dtype=str)
+        if 'name' not in df.columns:
+            print(f"Error: CSV file {csv_path} must have a 'name' column.")
+            return []
+        return df['name'].tolist()
+    except FileNotFoundError:
+        print(f"Error: CSV file {csv_path} not found.")
+        return []
+    except Exception as e:
+        print(f"Error reading CSV: {e}")
+        return []
 
-def format_data(data):
-    hashtag_info = {
-        "page_title": data.get("data", {}).get("info", {}).get("pageTitle", ""),
-        "video_count": data.get("data", {}).get("info", {}).get("content", {}).get("pageHeaderViewModel", {}).get("metadata", {}).get("contentMetadataViewModel", {}).get("metadataRows", [{}])[0].get("metadataParts", [{}])[0].get("text", {}).get("content", ""),
-        "videos": []
+def fetch_videos(hashtag, token):
+    params = {
+        "name": hashtag,
+        "depth": 1,
+        "only_shorts": False,
+        "token": token
     }
+    url = root + "/youtube/hashtag/search"  # Corrected to include endpoint
+    print(f"Request URL: {url}")
+    response = requests.get(url, params=params)
+   
+    if response.status_code == 200:
+        return response.json()
+    else:
+        print(f"Error fetching videos for #{hashtag}: {response.status_code} - {response.text}")
+        return None
 
+def format_video_data(data):
+    formatted_videos = []
     videos = data.get("data", {}).get("videos", [])
     for video in videos:
-        video_data = video.get("richItemRenderer", {}).get("content", {}).get("reelItemRenderer", {})
-        video_info = {
-            "video_id": video_data.get("videoId", ""),
-            "headline": video_data.get("headline", {}).get("simpleText", ""),
-            "thumbnail": video_data.get("thumbnail", {}).get("thumbnails", [{}])[0].get("url", ""),
-            "view_count": video_data.get("viewCountText", {}).get("simpleText", "")
-        }
-        hashtag_info["videos"].append(video_info)
+        if isinstance(video, dict) and "richItemRenderer" in video:
+            content = video["richItemRenderer"].get("content", {})
+            if "reelItemRenderer" in content:
+                renderer = content["reelItemRenderer"]
+                video_id = renderer.get("videoId", "")
+                title = renderer.get("headline", {}).get("simpleText", "")
+                view_count = renderer.get("viewCountText", {}).get("simpleText", "")
+                thumbnail = renderer.get("thumbnail", {}).get("thumbnails", [{}])[0].get("url", "")
+            elif "videoRenderer" in content:
+                renderer = content["videoRenderer"]
+                video_id = renderer.get("videoId", "")
+                title = renderer.get("title", {}).get("runs", [{}])[0].get("text", "")
+                view_count = renderer.get("viewCountText", {}).get("simpleText", "")
+                thumbnail = renderer.get("thumbnail", {}).get("thumbnails", [{}])[0].get("url", "")
+            else:
+                continue  # Skip if neither
+            formatted_video = {
+                "video_id": video_id,
+                "title": title,
+                "view_count": view_count,
+                "thumbnail_url": thumbnail,
+            }
+            formatted_videos.append(formatted_video)
+    return formatted_videos
 
-    return hashtag_info
-
-def save_to_csv(hashtag_info, filename):
-    if not hashtag_info["videos"]:
-        print("No data to save.")
+def save_to_csv(videos_data, filename):
+    if not videos_data:
+        print("No videos to save.")
         return
 
-    headers = ["page_title", "video_count", "video_id", "headline", "thumbnail", "view_count"]
+    keys = videos_data[0].keys()
     with open(filename, "w", newline='', encoding='utf-8') as f:
-        writer = csv.writer(f)
-        writer.writerow(headers)
-        for video in hashtag_info["videos"]:
-            writer.writerow([hashtag_info["page_title"], hashtag_info["video_count"], video["video_id"], video["headline"], video["thumbnail"], video["view_count"]])
+        writer = csv.DictWriter(f, fieldnames=keys)
+        writer.writeheader()
+        writer.writerows(videos_data)
 
 def main():
-    response_data = fetch_hashtag_data()
-    if response_data:
-        formatted_data = format_data(response_data)
-        save_to_csv(formatted_data, "hashtag_search.csv")
-        print(f"Saved hashtag data to hashtag_search.csv")
+    token = "jsK2yBd12gZlW1PI"
+    hashtags = read_csv("input.csv")
+    all_videos = []
+    for hashtag in hashtags:
+        print(f"Fetching videos for #{hashtag}")
+        res = fetch_videos(hashtag, token)
+        if res:
+            formatted_videos = format_video_data(res)
+            all_videos.extend(formatted_videos)
+    
+    os.makedirs("output_data", exist_ok=True)
+    save_to_csv(all_videos, "output_data/youtube_hashtag_output.csv")
+    print(f"Saved {len(all_videos)} videos to output_data/youtube_hashtag_output.csv")
 
 if __name__ == "__main__":
     main()

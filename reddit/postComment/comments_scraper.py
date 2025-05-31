@@ -1,94 +1,95 @@
 import requests
 import csv
 import os
+import pandas as pd
 
-TOKEN = "CoSVZABHepXLpV5Q"
+# Define the API endpoint
 root = "https://ensembledata.com/apis"
 endpoint = "/reddit/post/comments"
-params = {
-    "permalink": "/r/SkincareAddiction/comments/8pv3gg/ba_finished_my_5_month_course_of_accutane_just_in/",
-    "token": TOKEN
-}
 
-def fetch_comments():
-    res = requests.get(root + endpoint, params=params)
-    if res.status_code != 200:
-        print(f"Error fetching data: {res.status_code}")
-        return None
-    return res.json()
+def read_csv(csv_path):
+    df = pd.read_csv(csv_path, dtype=str)
+    rows = df.to_dict(orient="records")
+    return rows
 
-def format_data(data):
-    post_data = {
-       
-        "profile_url": f"https://www.reddit.com/user/{data.get('data', {}).get('author', '')}",
-      
+def fetch_comments(permalink, token):
+    params = {
+        "permalink": permalink,
+        "token": token
     }
+    
+    res = requests.get(root + endpoint, params=params)
+    
+    if res.status_code == 200:
+        return res.json()
+    else:
+        print(f"Error fetching comments for {permalink}: {res.status_code} - {res.text}")
+        return None
 
+def format_comment_data(data, formatted_comments=None):
+    if formatted_comments is None:
+        formatted_comments = []
+    
     comments = data.get("data", {}).get("comments", [])
-    formatted_comments = []
 
     for comment in comments:
-        comment_data = comment.get("data", {})
-        formatted_comment = {
-            "comment_id": comment_data.get("name", ""),
-            "comment_text": comment_data.get("body", ""),
-            "comment_url": comment_data.get("permalink", ""),
-            "comment_time": comment_data.get("created_utc", ""),
-            "comment_reaction_count": comment_data.get("score", 0),
-            "commenter_id": comment_data.get("author_fullname", ""),
-            "commenter_name": comment_data.get("author", ""),
-            "commenter_url": f"https://www.reddit.com/user/{comment_data.get('author', '')}",
-            "reply_count": len(format_replies(comment_data.get("replies")))  # Count replies
-        }
-        formatted_comments.append(formatted_comment)
+        if isinstance(comment, dict) and comment.get("kind") == "t1":  # Only process actual comments
+            comment_data = comment.get("data", {})
+            author = comment_data.get("author", "")
+            formatted_comment = {
+                "comment_id": comment_data.get("id", ""),
+                "comment_text": comment_data.get("body", ""),
+                "comment_url": comment_data.get("permalink", ""),
+                "comment_time": comment_data.get("created_utc", ""),
+                "comment_reaction_count": comment_data.get("score", 0),
+                "commenter_id": comment_data.get("author_fullname", ""),
+                "commenter_name": author,
+                "profile_url": f"https://www.reddit.com/user/{author}" if author else "",
+                "commenter_url": f"https://www.reddit.com/user/{author}" if author else "",
+                "reply_count": len(comment_data.get("replies", {}).get("data", {}).get("children", [])) if isinstance(comment_data.get("replies"), dict) else 0
+            }
+            formatted_comments.append(formatted_comment)
 
-    return post_data, formatted_comments
+            # Recursively process nested replies
+            replies = comment_data.get("replies")
+            if isinstance(replies, dict):
+                replies_children = replies.get("data", {}).get("children", [])
+                if replies_children:
+                    format_comment_data({"data": {"comments": replies_children}}, formatted_comments)
 
-def format_replies(replies_data):
-    replies = []
-    # Check if replies_data is a dictionary and has the expected structure
-    if isinstance(replies_data, dict) and replies_data.get("kind") == "Listing":
-        for child in replies_data.get("data", {}).get("children", []):
-            child_data = child.get("data", {})
-            link_id = child_data.get("link_id", "")
-            parent_id = child_data.get("parent_id", "")
-            
-            # Ensure link_id and parent_id are formatted correctly
-            post_id = link_id.split('_')[1] if link_id and '_' in link_id else ""
-            comment_id = parent_id.split('_')[1] if parent_id and '_' in parent_id else ""
+    return formatted_comments
 
-            replies.append({
-                "post_id": post_id,  # Extract post_id from link_id
-                "comment_id": comment_id,  # Extract comment_id from parent_id
-                "reply_id": child_data.get("name", ""),
-                "reply_text": child_data.get("body", ""),
-                "reply_url": child_data.get("permalink", ""),
-                "reply_time": child_data.get("created_utc", ""),
-                "reply_reaction_count": child_data.get("score", 0),
-                "replier_id": child_data.get("author_fullname", ""),
-                "replier_name": child_data.get("author", ""),
-                "replier_url": f"https://www.reddit.com/user/{child_data.get('author', '')}"
-            })
-    return replies
-
-def save_to_csv(post_data, comments_data, filename):
+def save_to_csv(comments_data, filename):
     if not comments_data:
-        print("No data to save.")
+        print("No comments to save.")
         return
 
-    headers = list(post_data.keys()) + list(comments_data[0].keys())
+    headers = comments_data[0].keys()
     with open(filename, "w", newline='', encoding='utf-8') as f:
         writer = csv.DictWriter(f, fieldnames=headers)
         writer.writeheader()
-        for comment in comments_data:
-            writer.writerow({**post_data, **comment})
+        writer.writerows(comments_data)
 
 def main():
-    response_data = fetch_comments()
-    if response_data:
-        post_data, formatted_comments = format_data(response_data)
-        save_to_csv(post_data, formatted_comments, "reddit_comments.csv")
-        print(f"Saved {len(formatted_comments)} comments to reddit_comments.csv")
+    token = "jsK2yBd12gZlW1PI"  # Replace with your actual token
+    user_dict = read_csv("input.csv")
+
+    all_comments = []
+    for row in user_dict:
+        permalink = row["permalink"]
+        print(f"Fetching comments from post: {permalink}")
+        res = fetch_comments(permalink, token)
+
+        if res:
+            formatted_comments = format_comment_data(res)
+            all_comments.extend(formatted_comments)
+
+    # Create output folder if it doesn't exist
+    os.makedirs("output_data", exist_ok=True)
+
+    # Save to CSV
+    save_to_csv(all_comments, "output_data/reddit_comments_output.csv")
+    print(f"Saved {len(all_comments)} comments to output_data/reddit_comments_output.csv")
 
 if __name__ == "__main__":
     main()
