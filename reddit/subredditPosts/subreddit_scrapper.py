@@ -2,6 +2,7 @@ import requests
 import csv
 import os
 import pandas as pd
+from datetime import datetime
 
 # Define the API endpoint
 root = "https://ensembledata.com/apis"
@@ -10,8 +11,8 @@ endpoint = "/reddit/subreddit/posts"
 def read_csv(csv_path):
     try:
         df = pd.read_csv(csv_path, dtype=str)
-        if 'name' not in df.columns:
-            print(f"Error: CSV file {csv_path} must have a 'name' column.")
+        if 'name' not in df.columns or 'sort' not in df.columns or 'period' not in df.columns:
+            print(f"Error: CSV file {csv_path} must have 'name', 'sort', and 'period' columns.")
             return []
         rows = df.to_dict(orient="records")
         return rows
@@ -22,11 +23,12 @@ def read_csv(csv_path):
         print(f"Error reading CSV: {e}")
         return []
 
-def fetch_posts(subreddit_name, token):
+def fetch_posts(subreddit_name, sort, period, cursor, token):
     params = {
         "name": subreddit_name,
-        "sort": "new",
-        "period": "hour",
+        "sort": sort,
+        "period": period,
+        "cursor": cursor,
         "token": token
     }
     
@@ -50,7 +52,7 @@ def format_post_data(data, formatted_posts=None):
             author = post_data.get("author", "")
             formatted_post = {
                 "post_id": post_data.get("id", ""),
-                "post_url": post_data.get("url", ""),
+                "post_url": post_data.get("permalink", ""),
                 "post_text": post_data.get("selftext", ""),
                 "post_time": post_data.get("created_utc", ""),
                 "reaction_count": post_data.get("ups", 0),
@@ -75,18 +77,31 @@ def save_to_csv(posts_data, filename):
         writer.writerows(posts_data)
 
 def main():
-    token = "jsK2yBd12gZlW1PI"  # Try "VSKSPtmy3XRmbROO" if 401 error
+    token = "VSKSPtmy3XRmbROO"  # Replace with your actual token
     user_dict = read_csv("input.csv")
 
     all_posts = []
     for row in user_dict:
         subreddit_name = row["name"]
-        print(f"Fetching posts from subreddit: {subreddit_name}")
-        res = fetch_posts(subreddit_name, token)
+        sort = row["sort"]
+        period = row["period"]
+        cursor = ""
+        timestamp_limit = datetime.strptime("2025-06-03", "%Y-%m-%d").timestamp()  # Example timestamp limit
 
-        if res:
-            formatted_posts = format_post_data(res)
-            all_posts.extend(formatted_posts)
+        while True:
+            print(f"Fetching posts from subreddit: {subreddit_name} with cursor: {cursor}")
+            res = fetch_posts(subreddit_name, sort, period, cursor, token)
+
+            if res:
+                formatted_posts = format_post_data(res)
+                all_posts.extend(formatted_posts)
+
+                # Check for cursor for the next call
+                cursor = res.get("data", {}).get("after", "")
+                
+                # Break if no more posts or if we reach the timestamp limit
+                if not cursor or (formatted_posts and float(formatted_posts[-1]["post_time"]) < timestamp_limit):
+                    break
 
     # Create output folder if it doesn't exist
     os.makedirs("output_data", exist_ok=True)
