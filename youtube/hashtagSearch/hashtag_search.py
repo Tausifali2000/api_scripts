@@ -9,10 +9,10 @@ root = "https://ensembledata.com/apis"
 def read_csv(csv_path):
     try:
         df = pd.read_csv(csv_path, dtype=str)
-        if 'name' not in df.columns:
-            print(f"Error: CSV file {csv_path} must have a 'name' column.")
+        if 'name' not in df.columns or 'depth' not in df.columns:
+            print(f"Error: CSV file {csv_path} must have 'name' and 'depth' columns.")
             return []
-        return df['name'].tolist()
+        return df.to_dict(orient="records")  # Return all rows as dictionaries
     except FileNotFoundError:
         print(f"Error: CSV file {csv_path} not found.")
         return []
@@ -20,10 +20,10 @@ def read_csv(csv_path):
         print(f"Error reading CSV: {e}")
         return []
 
-def fetch_videos(hashtag, token):
+def fetch_videos(hashtag, depth, token):
     params = {
         "name": hashtag,
-        "depth": 1,
+        "depth": depth,
         "only_shorts": False,
         "token": token
     }
@@ -78,12 +78,14 @@ def save_to_csv(videos_data, filename):
         writer.writerows(videos_data)
 
 def main():
-    token = "jsK2yBd12gZlW1PI"
+    token = "jsK2yBd12gZlW1PI"  # Replace with your actual token
     hashtags = read_csv("input.csv")
     all_videos = []
-    for hashtag in hashtags:
-        print(f"Fetching videos for #{hashtag}")
-        res = fetch_videos(hashtag, token)
+    for row in hashtags:
+        hashtag = row["name"]
+        depth = row["depth"]
+        print(f"Fetching videos for #{hashtag} with depth {depth}")
+        res = fetch_videos(hashtag, depth, token)
         if res:
             formatted_videos = format_video_data(res)
             all_videos.extend(formatted_videos)
