@@ -9,15 +9,15 @@ endpoint = "/youtube/search"
 
 def read_keywords_from_csv(csv_path):
     df = pd.read_csv(csv_path, dtype=str)
-    return df['keyword'].dropna().tolist()  # Assuming the CSV has a column named 'keyword'
+    return df.to_dict(orient="records")  # Return all rows as dictionaries
 
-def fetch_youtube_videos(keyword, token):
+def fetch_youtube_videos(keyword, depth, period, sorting, token, cursor=""):
     params = {
         "keyword": keyword,
-        "depth": 1,
-        "start_cursor": "",
-        "period": "overall",
-        "sorting": "relevance",
+        "depth": depth,
+        "start_cursor": cursor,
+        "period": period,
+        "sorting": sorting,
         "get_additional_info": False,
         "token": token
     }
@@ -31,6 +31,8 @@ def format_video_data(data):
     video_info_list = []
     for post in data.get("data", {}).get("posts", []):
         video_renderer = post.get("videoRenderer", {})
+        if not video_renderer:  # Skip if no video renderer
+            continue
         channel_info = video_renderer.get("longBylineText", {}).get("runs", [{}])[0]
         video_info = {
             "video_id": video_renderer.get("videoId", ""),
@@ -55,7 +57,9 @@ def save_videos_to_csv(video_info_list, filename):
         writer = csv.writer(f)
         writer.writerow(headers)
         for video_info in video_info_list:
-            writer.writerow([video_info["video_id"], video_info["title"], video_info["thumbnail_url"], video_info["published_time"], video_info["length"], video_info["view_count"], video_info["channel_name"], video_info["channel_url"]])
+            # Only write if video_info has valid data
+            if all(video_info.values()):
+                writer.writerow([video_info["video_id"], video_info["title"], video_info["thumbnail_url"], video_info["published_time"], video_info["length"], video_info["view_count"], video_info["channel_name"], video_info["channel_url"]])
 
 def main():
     input_csv = "input.csv" 
@@ -66,8 +70,13 @@ def main():
 
     keywords = read_keywords_from_csv(input_csv)
     video_info_list = []
-    for keyword in keywords:
-        response_data = fetch_youtube_videos(keyword, token)
+    for row in keywords:
+        keyword = row["keyword"]
+        depth = row.get("depth", 1)
+        period = row.get("period", "overall")
+        sorting = row.get("sorting", "relevance")
+        cursor = row.get("cursor", "")  # Get cursor if provided
+        response_data = fetch_youtube_videos(keyword, depth, period, sorting, token, cursor)
         if response_data:
             formatted_data = format_video_data(response_data)
             video_info_list.extend(formatted_data)

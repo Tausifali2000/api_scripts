@@ -2,7 +2,7 @@ import requests
 import csv
 import os
 import pandas as pd
-from datetime import datetime
+from datetime import datetime, timezone
 
 # Define the API endpoint
 root = "https://ensembledata.com/apis"
@@ -11,8 +11,8 @@ endpoint = "/reddit/subreddit/posts"
 def read_csv(csv_path):
     try:
         df = pd.read_csv(csv_path, dtype=str)
-        if 'name' not in df.columns or 'sort' not in df.columns or 'period' not in df.columns:
-            print(f"Error: CSV file {csv_path} must have 'name', 'sort', and 'period' columns.")
+        if 'name' not in df.columns or 'sort' not in df.columns or 'period' not in df.columns or 'timestamp_limit' not in df.columns:
+            print(f"Error: CSV file {csv_path} must have 'name', 'sort', 'period', and 'timestamp_limit' columns.")
             return []
         rows = df.to_dict(orient="records")
         return rows
@@ -50,11 +50,14 @@ def format_post_data(data, formatted_posts=None):
         if isinstance(post, dict) and post.get("kind") == "t3":  # Only process actual posts
             post_data = post.get("data", {})
             author = post_data.get("author", "")
+            created_utc = post_data.get("created_utc", 0)
+            post_time = datetime.fromtimestamp(created_utc, timezone.utc).strftime('%H:%M:%S')
+
             formatted_post = {
                 "post_id": post_data.get("id", ""),
                 "post_url": post_data.get("permalink", ""),
                 "post_text": post_data.get("selftext", ""),
-                "post_time": post_data.get("created_utc", ""),
+                "post_time": post_time,  # Converted to readable format
                 "reaction_count": post_data.get("ups", 0),
                 "comment_count": post_data.get("num_comments", 0),
                 "profile_id": post_data.get("author_fullname", ""),
@@ -65,19 +68,21 @@ def format_post_data(data, formatted_posts=None):
 
     return formatted_posts
 
-def save_to_csv(posts_data, filename):
+def save_to_csv(posts_data):
     if not posts_data:
         print("No posts to save.")
         return
 
     headers = posts_data[0].keys()
+    filename = "output_data/subreddit_post_output.csv"  # Fixed filename
     with open(filename, "w", newline='', encoding='utf-8') as f:
         writer = csv.DictWriter(f, fieldnames=headers)
         writer.writeheader()
         writer.writerows(posts_data)
+    print(f"Saved {len(posts_data)} posts to {filename}")
 
 def main():
-    token = "VSKSPtmy3XRmbROO"  # Replace with your actual token
+    token = "SfFWgfc5TFLgQmWy"  # Replace with your actual token
     user_dict = read_csv("input.csv")
 
     all_posts = []
@@ -86,7 +91,7 @@ def main():
         sort = row["sort"]
         period = row["period"]
         cursor = ""
-        timestamp_limit = datetime.strptime("2025-06-03", "%Y-%m-%d").timestamp()  # Example timestamp limit
+        timestamp_limit = datetime.strptime(row["timestamp_limit"], "%Y-%m-%d").timestamp()  # Read timestamp limit from CSV
 
         while True:
             print(f"Fetching posts from subreddit: {subreddit_name} with cursor: {cursor}")
@@ -106,9 +111,8 @@ def main():
     # Create output folder if it doesn't exist
     os.makedirs("output_data", exist_ok=True)
 
-    # Save to CSV
-    save_to_csv(all_posts, "output_data/reddit_posts_output.csv")
-    print(f"Saved {len(all_posts)} posts to output_data/reddit_posts_output.csv")
+    # Save all posts to a single CSV file
+    save_to_csv(all_posts)
 
 if __name__ == "__main__":
     main()
