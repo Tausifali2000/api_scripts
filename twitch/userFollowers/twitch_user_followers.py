@@ -33,7 +33,7 @@ def save_to_csv(row: dict, username: str, out_dir: str):
     print(f"✅ Saved → {file_path}")
 
 def main():
-    input_csv   = "twitch_user_followers_input.csv"   # must have a 'username' column
+    input_csv   = "twitch_user_followers_input.csv"   
     output_dir  = "twitch_user_followers_output"
 
     usernames = read_usernames(input_csv)

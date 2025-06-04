@@ -45,7 +45,7 @@ def save_user_to_csv(user_info, filename):
         return
 
     headers = ["username", "user_id", "full_name", "profile_pic_url", "is_verified", "is_active_on_text_post_app", "has_onboarded_to_text_post_app"]
-    with open(filename, "w", newline='', encoding='utf-8') as f:  # overwrite per user
+    with open(filename, "w", newline='', encoding='utf-8') as f:  
         writer = csv.DictWriter(f, fieldnames=headers)
         writer.writeheader()
         for user in user_info:
