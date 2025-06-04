@@ -1,137 +1,124 @@
-import requests
 import csv
 import os
+import time
+import requests
 import pandas as pd
-from datetime import datetime, timezone
 
-# Define the API endpoint
-root = "https://ensembledata.com/apis"
-endpoint = "/reddit/subreddit/posts"
+ROOT = "https://ensembledata.com/apis"
+ENDPOINT = "/reddit/subreddit/posts"
 
-def read_csv(csv_path):
-    try:
-        df = pd.read_csv(csv_path, dtype=str)
-        required_cols = ['name', 'sort', 'period', 'timestamp_limit']
-        if not all(col in df.columns for col in required_cols):
-            print(f"❌ Error: CSV must contain columns: {', '.join(required_cols)}")
-            return []
-        return df.to_dict(orient="records")
-    except Exception as e:
-        print(f"❌ Error reading CSV: {e}")
-        return []
+# -------- helpers ----------------------------------------------------------- #
+def load_tasks(csv_path: str):
+    """Read subreddit_post_input.csv → list[dict] (name, sort, period, timestamp_limit)."""
+    need = {"name", "sort", "period", "timestamp_limit"}
+    df = pd.read_csv(csv_path, dtype=str)
 
-def fetch_posts(subreddit_name, sort, period, cursor, token):
-    params = {
-        "name": subreddit_name,
-        "sort": sort,
-        "period": period,
-        "cursor": cursor,
-        "token": token
-    }
+    if not need.issubset(df.columns):
+        raise ValueError(f"CSV must include columns: {', '.join(sorted(need))}")
 
-    res = requests.get(root + endpoint, params=params)
+    df["timestamp_limit"] = df["timestamp_limit"].astype(float)
+    return df.to_dict("records")
 
-    if res.status_code == 200:
-        return res.json()
-    else:
-        print(f"❌ Error fetching posts for {subreddit_name}: {res.status_code} - {res.text}")
-        return None
 
-def format_post_data(data):
-    formatted_posts = []
-    posts = data.get("data", {}).get("posts", [])
+def fetch_page(session, *, name, sort, period, cursor, token):
+    """Single API request. Returns JSON or None on error."""
+    params = {"name": name, "sort": sort, "period": period,
+              "cursor": cursor, "token": token}
 
-    for post in posts:
-        if isinstance(post, dict) and post.get("kind") == "t3":
-            post_data = post.get("data", {})
-            author = post_data.get("author", "")
-            created_utc = post_data.get("created_utc", 0)
-            post_time = datetime.fromtimestamp(created_utc, timezone.utc).strftime('%H:%M:%S')
+    r = session.get(ROOT + ENDPOINT, params=params, timeout=30)
+    if r.status_code == 200:
+        return r.json()
 
-            formatted_post = {
-                "post_id": post_data.get("id", ""),
-                "post_url": post_data.get("permalink", ""),
-                "post_text": post_data.get("selftext", ""),
-                "post_time": post_time,
-                "created_utc": created_utc,
-                "reaction_count": post_data.get("ups", 0),
-                "comment_count": post_data.get("num_comments", 0),
-                "profile_id": post_data.get("author_fullname", ""),
-                "profile_name": author,
-                "profile_url": f"https://www.reddit.com/user/{author}" if author else ""
-            }
-            formatted_posts.append(formatted_post)
+    print(f"❌ {name}: HTTP {r.status_code} – {r.text[:200]}")
+    return None
 
-    return formatted_posts
 
-def save_to_csv(posts_data):
-    if not posts_data:
-        print("⚠️ No posts to save.")
+def flatten_posts(api_json):
+    """Turn raw API payload → list[dict] ready for CSV."""
+    out = []
+    for wrapper in api_json.get("data", {}).get("posts", []):
+        if wrapper.get("kind") != "t3":
+            continue
+
+        d = wrapper["data"]
+        author = d.get("author", "")
+        out.append({
+            "post_id":        d.get("id", ""),
+            "post_url":       d.get("permalink", ""),
+            "post_text":      d.get("selftext", ""),
+            "post_time":      float(d.get("created_utc", 0)),
+            "reaction_count": int(d.get("ups", 0)),
+            "comment_count":  int(d.get("num_comments", 0)),
+            "profile_id":     d.get("author_fullname", ""),
+            "profile_name":   author,
+            "profile_url":    f"https://www.reddit.com/user/{author}" if author else "",
+        })
+    return out
+
+
+def save_csv(rows, subreddit_name):
+    if not rows:
+        print("⚠️  Nothing to write.")
         return
 
-    # Remove 'created_utc' from final CSV
-    for post in posts_data:
-        post.pop("created_utc", None)
+    folder = "subreddit_post"
+    os.makedirs(folder, exist_ok=True)
+    filename = f"{folder}/subreddit_post_{subreddit_name}.csv"
+    
+    with open(filename, "w", newline="", encoding="utf-8") as f:
+        w = csv.DictWriter(f, fieldnames=rows[0].keys())
+        w.writeheader()
+        w.writerows(rows)
 
-    headers = posts_data[0].keys()
-    os.makedirs("output_data", exist_ok=True)
-    filename = "output_data/subreddit_post_output.csv"
-    with open(filename, "w", newline='', encoding='utf-8') as f:
-        writer = csv.DictWriter(f, fieldnames=headers)
-        writer.writeheader()
-        writer.writerows(posts_data)
-    print(f"✅ Saved {len(posts_data)} posts to {filename}")
+    print(f"✅ Saved {len(rows)} rows → {filename}")
 
+
+# -------- main loop --------------------------------------------------------- #
 def main():
-    token = "GPQxLsDwB4FSYFwG"  # Replace with your token
-    user_dict = read_csv("input.csv")
+    TOKEN = "kijGpadCYi0lZd8M"  # 🔑  paste your token here
+    tasks = load_tasks("subreddit_post_input.csv")
+    
+    with requests.Session() as s:
+        for t in tasks:
+            name = t["name"]
+            sort = t["sort"]
+            period = t["period"]
+            limit = float(t["timestamp_limit"])
+            all_rows = []
 
-    all_posts = []
+            print(f"\n▶️  {name} | sort={sort} | period={period} | stop < {limit}")
+            cursor = ""
+            while True:
+                page = fetch_page(s, name=name, sort=sort,
+                                  period=period, cursor=cursor, token=TOKEN)
+                if not page:
+                    break
 
-    for row in user_dict:
-        subreddit_name = row["name"]
-        sort = row["sort"]
-        period = row["period"]
-        timestamp_limit = datetime.strptime(row["timestamp_limit"], "%Y-%m-%d").timestamp()
+                rows = flatten_posts(page)
+                if not rows:
+                    print("⚠️  Empty page.")
+                    break
 
-        cursor = ""
-        page_count = 0
-        max_pages = 2  # Set a maximum number of pages to fetch
+                fresh = [r for r in rows if r["post_time"] >= limit]
+                all_rows.extend(fresh)
 
-        while page_count < max_pages:
-            print(f"\n🔄 [Page {page_count + 1}] Fetching from: {subreddit_name}, Cursor: {cursor}")
-            res = fetch_posts(subreddit_name, sort, period, cursor, token)
+                oldest = rows[-1]["post_time"]
+                print(f"📦 got {len(rows):>2} posts "
+                      f"({len(fresh):>2} kept) | oldest={oldest}")
 
-            if not res:
-                print("❌ API error or empty response.")
-                break
+                if any(r["post_time"] < limit for r in rows):
+                    print("✅ encountered older post – stop paging")
+                    break
 
-            formatted_posts = format_post_data(res)
-            if not formatted_posts:
-                print("⚠️ No posts returned.")
-                break
+                cursor = page.get("data", {}).get("nextCursor", "")
+                if not cursor:
+                    print("✅ no nextCursor – finished")
+                    break
 
-            all_posts.extend(formatted_posts)
+                time.sleep(0.5)
 
-            last_post_timestamp = formatted_posts[-1]["created_utc"]
-            print(f"🕒 Last post timestamp: {last_post_timestamp}, Limit: {timestamp_limit}")
-            print(f"📦 Fetched {len(formatted_posts)} posts on this page.")
+            save_csv(all_rows, name)
 
-            if float(last_post_timestamp) < timestamp_limit:
-                print(f"✅ Reached timestamp limit: {row['timestamp_limit']}")
-                break
-
-            # Update cursor for the next request
-            cursor = res.get("data", {}).get("nextCursor", "")
-            print(f"Next Cursor: {cursor}")  # Check the cursor value
-
-            if not cursor or len(formatted_posts) < 25:  # Check if cursor is empty or fewer posts than expected
-                print("✅ No more cursor or fewer posts fetched than expected. Pagination complete.")
-                break
-
-            page_count += 1
-
-    save_to_csv(all_posts)
 
 if __name__ == "__main__":
     main()
