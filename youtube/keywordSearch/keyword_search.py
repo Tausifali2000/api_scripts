@@ -102,11 +102,9 @@ def format_video_data(data):
             "post_url": video_url,
             "post_text": title_text,
             "post_time": published_time,
-            "profile_id": "", # YouTube API doesn't provide channel ID in this endpoint
             "profile_name": channel_name,
             "profile_url": channel_url,
             "reaction_count": view_count_text,  # Using view count as reaction count
-            "comment_count": ""  # Not available in search results
         }
         video_info_list.append(video_info)
         print(f"Added video: {video_info['post_text'][:50]}...")
