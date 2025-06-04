@@ -78,25 +78,26 @@ def save_to_csv(comments_data, filename):
         writer.writerow([
             "comment_id", "comment_text", "comment_url", "comment_time", "comment_reaction_count",
             "commenter_id", "commenter_name", "profile_url",
-            "reply_id", "reply_text", "reply_url", "replier_name", "reply_reaction_count"
+            "replies" 
         ])
 
         for c in comments_data:
+            replies_text = []
             if c["replies"]:
                 for r in c["replies"]:
-                    writer.writerow([
-                        c["comment_id"], c["comment_text"], c["comment_url"], c["comment_time"], c["comment_reaction_count"],
-                        c["commenter_id"], c["commenter_name"], c["profile_url"],
-                        r["reply_id"], r["reply_text"], r["reply_url"], r["replier_name"], r["reply_reaction_count"]
-                    ])
+                    replies_text.append(f"{r['reply_text']} (by {r['replier_name']})")
+                replies_combined = "; ".join(replies_text)  # Combine replies into a single string
             else:
-                writer.writerow([
-                    c["comment_id"], c["comment_text"], c["comment_url"], c["comment_time"], c["comment_reaction_count"],
-                    c["commenter_id"], c["commenter_name"], c["profile_url"],
-                    "", "", "", "", ""
-                ])
+                replies_combined = ""
+
+            writer.writerow([
+                c["comment_id"], c["comment_text"], c["comment_url"], c["comment_time"], c["comment_reaction_count"],
+                c["commenter_id"], c["commenter_name"], c["profile_url"],
+                replies_combined  # Write combined replies
+            ])
 
     print(f"✅ Saved comments → {filename}")
+
 
 # Main script
 def main():

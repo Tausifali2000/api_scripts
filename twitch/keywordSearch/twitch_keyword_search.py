@@ -9,7 +9,7 @@ endpoint = "/twitch/search"
 
 def read_keywords_from_csv(csv_path):
     df = pd.read_csv(csv_path, dtype=str)
-    return df['keyword'].dropna().tolist()  # CSV must have a column named 'keyword'
+    return df['keyword'].dropna().tolist()  
 
 def fetch_twitch_search_results(keyword, token):
     params = {

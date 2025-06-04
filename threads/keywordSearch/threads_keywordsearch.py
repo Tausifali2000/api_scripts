@@ -7,7 +7,6 @@ import pandas as pd
 ROOT = "https://ensembledata.com/apis"
 ENDPOINT = "/threads/keyword/search"
 
-# Fixed token
 TOKEN = "kijGpadCYi0lZd8M"
 
 # Input and output setup
@@ -17,7 +16,7 @@ OUTPUT_DIR = "threads_keywordsearch"
 def read_keywords_from_csv(csv_path):
     """Read keywords from CSV file."""
     df = pd.read_csv(csv_path, dtype=str)
-    return df['keyword'].dropna().tolist()  # Ensure no NaNs
+    return df['keyword'].dropna().tolist() 
 
 def fetch_threads_info(keyword, token):
     """Call the Threads API with the given keyword."""

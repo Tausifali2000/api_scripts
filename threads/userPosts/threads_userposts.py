@@ -6,11 +6,11 @@ import pandas as pd
 # Define the API endpoint and parameters
 root = "https://ensembledata.com/apis"
 endpoint = "/threads/user/posts"
-token = "kijGpadCYi0lZd8M"  # Use your token here
+token = "kijGpadCYi0lZd8M"  
 
 def read_user_ids_from_csv(csv_path):
     df = pd.read_csv(csv_path, dtype=str)
-    return df['id'].dropna().tolist()  # Assuming the CSV has a column named 'id'
+    return df['id'].dropna().tolist()  
 
 def fetch_user_posts(user_id):
     params = {
@@ -52,7 +52,7 @@ def save_posts_to_csv(posts_info, filename):
         return
 
     headers = ["post_id", "username", "user_id", "profile_pic_url", "is_verified", "caption", "like_count", "timestamp", "media_type", "code"]
-    with open(filename, "w", newline='', encoding='utf-8') as f:  # Overwrite file for each user
+    with open(filename, "w", newline='', encoding='utf-8') as f:  
         writer = csv.DictWriter(f, fieldnames=headers)
         writer.writeheader()
         for post in posts_info:
@@ -60,7 +60,7 @@ def save_posts_to_csv(posts_info, filename):
 
 def main():
     input_csv = "threads_userposts_input.csv"  # input CSV file with user IDs in 'id' column
-    output_folder = "threads_userposts_output"  # output folder to store user post CSVs
+    output_folder = "threads_userposts_output"  
     os.makedirs(output_folder, exist_ok=True)
 
     user_ids = read_user_ids_from_csv(input_csv)

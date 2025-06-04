@@ -4,13 +4,11 @@ import os
 import pandas as pd
 from pathlib import Path
 
-# --------------------------------------------------------------------------- #
 ROOT = "https://ensembledata.com/apis"
 ENDPOINT = "/threads/post/replies"
-TOKEN = "kijGpadCYi0lZd8M"                       # fixed token
-INPUT_CSV = "threads_postreplies_input.csv"      # column: post_id
-OUT_DIR = Path("threads_postreplies")            # output folder
-# --------------------------------------------------------------------------- #
+TOKEN = "kijGpadCYi0lZd8M"                      
+INPUT_CSV = "threads_postreplies_input.csv"      
+OUT_DIR = Path("threads_postreplies")            
 
 def read_post_ids(csv_path: str):
     """Return a list of post IDs from the input CSV."""
