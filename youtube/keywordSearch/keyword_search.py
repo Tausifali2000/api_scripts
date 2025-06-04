@@ -123,11 +123,9 @@ def save_videos_to_csv(video_info_list, filename):
         "post_url", 
         "post_text", 
         "post_time", 
-        "profile_id", 
         "profile_name", 
         "profile_url", 
         "reaction_count", 
-        "comment_count"
     ]
     
     with open(filename, "w", newline='', encoding='utf-8') as f:
@@ -139,11 +137,9 @@ def save_videos_to_csv(video_info_list, filename):
                 video_info["post_url"],
                 video_info["post_text"],
                 video_info["post_time"],
-                video_info["profile_id"],
                 video_info["profile_name"],
                 video_info["profile_url"],
                 video_info["reaction_count"],
-                video_info["comment_count"]
             ])
 
 def main():
