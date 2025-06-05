@@ -36,7 +36,6 @@ def flatten_replies(api_json):
                 "username":      user.get("username", ""),
                 "user_id":       user.get("pk", ""),
                 "profile_pic_url": user.get("profile_pic_url", ""),
-                "is_verified":   user.get("is_verified", False),
                 "reply_text":    (
                     post.get("text_post_app_info", {})
                         .get("text_fragments", {})
@@ -46,7 +45,6 @@ def flatten_replies(api_json):
                 "like_count":    post.get("like_count", 0),
                 "timestamp":     post.get("taken_at", ""),
                 "caption":       post.get("caption", {}).get("text", ""),
-                "media_type":    post.get("media_type", "")
             })
     return rows
 

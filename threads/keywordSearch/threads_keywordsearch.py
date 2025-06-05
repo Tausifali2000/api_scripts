@@ -47,13 +47,11 @@ def format_threads_data(data):
             "user_id": user.get("id", ""),
             "username": user.get("username", ""),
             "profile_pic_url": user.get("profile_pic_url", ""),
-            "is_verified": user.get("is_verified", False),
             "like_count": post.get("like_count", 0),
             "repost_count": post.get("text_post_app_info", {}).get("repost_count", 0),
             "reply_count": post.get("text_post_app_info", {}).get("direct_reply_count", 0),
             "content": post.get("caption", {}).get("text", ""),
-            "media_type": post.get("media_type", ""),
-            "taken_at": post.get("taken_at", "")
+            "post_time": post.get("taken_at", "")  
         }
         threads_info.append(thread_info)
     return threads_info

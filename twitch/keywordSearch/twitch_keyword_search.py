@@ -36,9 +36,7 @@ def format_search_data(data):
             "owner_id": item.get("owner", {}).get("id", ""),
             "owner_displayName": item.get("owner", {}).get("displayName", ""),
             "game_name": item.get("game", {}).get("name", ""),
-            "lengthSeconds": item.get("lengthSeconds", 0),
             "viewCount": item.get("viewCount", 0),
-            "previewThumbnailURL": item.get("previewThumbnailURL", ""),
         }
         search_info_list.append(search_info)
     return search_info_list
@@ -50,8 +48,7 @@ def save_to_csv(data_list, filename):
 
     headers = [
         "trackingID", "video_id", "title", "createdAt",
-        "owner_id", "owner_displayName", "game_name",
-        "lengthSeconds", "viewCount", "previewThumbnailURL"
+        "owner_id", "owner_displayName", "game_name", "viewCount"
     ]
     with open(filename, "w", newline='', encoding='utf-8') as f:
         writer = csv.DictWriter(f, fieldnames=headers)

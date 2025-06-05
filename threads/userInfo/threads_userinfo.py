@@ -31,7 +31,6 @@ def format_user_data(data):
         "profile_pic_url": data.get("data", {}).get("profile_pic_url", ""),
         "follower_count": data.get("data", {}).get("follower_count", 0),
         "biography": data.get("data", {}).get("biography", ""),
-        "is_verified": data.get("data", {}).get("is_verified", False),
     }
 
 def save_user_to_csv(user_info, user_id):
