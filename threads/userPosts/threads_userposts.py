@@ -36,12 +36,10 @@ def format_posts_data(data):
                 "username": user.get("username", ""),
                 "user_id": user.get("pk", ""),
                 "profile_pic_url": user.get("profile_pic_url", ""),
-                "is_verified": user.get("is_verified", False),
                 "caption": post.get("caption", {}).get("text", "") if post.get("caption") else "",
                 "like_count": post.get("like_count", 0),
                 "timestamp": post.get("taken_at", 0),
-                "media_type": post.get("media_type", ""),
-                "code": post.get("code", ""),
+                "post_code": post.get("code", ""),
             }
             posts_info.append(post_details)
     return posts_info
@@ -51,7 +49,7 @@ def save_posts_to_csv(posts_info, filename):
         print("No posts to save.")
         return
 
-    headers = ["post_id", "username", "user_id", "profile_pic_url", "is_verified", "caption", "like_count", "timestamp", "media_type", "code"]
+    headers = ["post_id", "username", "user_id", "profile_pic_url", "caption", "like_count", "timestamp", "post_code"]
     with open(filename, "w", newline='', encoding='utf-8') as f:  
         writer = csv.DictWriter(f, fieldnames=headers)
         writer.writeheader()

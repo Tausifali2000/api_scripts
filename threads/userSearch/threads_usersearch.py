@@ -32,9 +32,6 @@ def format_user_data(data):
             "user_id": user.get("pk", ""),
             "full_name": user.get("full_name", ""),
             "profile_pic_url": user.get("profile_pic_url", ""),
-            "is_verified": user.get("is_verified", False),
-            "is_active_on_text_post_app": user.get("is_active_on_text_post_app", False),
-            "has_onboarded_to_text_post_app": user.get("has_onboarded_to_text_post_app", False),
         }
         user_info.append(user_details)
     return user_info
@@ -44,7 +41,7 @@ def save_user_to_csv(user_info, filename):
         print("No data to save.")
         return
 
-    headers = ["username", "user_id", "full_name", "profile_pic_url", "is_verified", "is_active_on_text_post_app", "has_onboarded_to_text_post_app"]
+    headers = ["username", "user_id", "full_name", "profile_pic_url"]
     with open(filename, "w", newline='', encoding='utf-8') as f:  
         writer = csv.DictWriter(f, fieldnames=headers)
         writer.writeheader()
