@@ -13,7 +13,7 @@ TOKEN = os.getenv("ENSEMBLE_DATA_TOKEN")
 csv_path = "youtube_shortDetails_input.csv"
 
 def convert_relative_time_to_epoch(relative_time: str) -> int:
-    """Convert strings like '5 days ago', '2 months ago', etc., into epoch time."""
+   
     now = datetime.now(timezone.utc)
 
     time_map = {

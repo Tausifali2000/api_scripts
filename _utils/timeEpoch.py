@@ -2,7 +2,7 @@ from datetime import datetime, timedelta, timezone
 import re
 
 def convert_relative_time_to_epoch(relative_time: str) -> int:
-    """Convert strings like '5 days ago', '2 months ago', etc., into epoch time."""
+  
     now = datetime.now(timezone.utc)
 
     time_map = {
@@ -16,9 +16,9 @@ def convert_relative_time_to_epoch(relative_time: str) -> int:
         'days': 'days',
         'week': 'weeks',
         'weeks': 'weeks',
-        'month': 'days',   # Approximate months as 30 days
+        'month': 'days',   
         'months': 'days',
-        'year': 'days',    # Approximate years as 365 days
+        'year': 'days',    
         'years': 'days'
     }
 
