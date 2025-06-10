@@ -72,14 +72,14 @@ def save_to_csv(channel_info, shorts_info, filename):
             ])
 
 def main():
-    params_list = read_params_from_csv("input.csv")
+    params_list = read_params_from_csv("youtube_channelShorts_input.csv")
     
     # Ensure output directory exists
     output_dir = "output"
     os.makedirs(output_dir, exist_ok=True)
     
     # Set the output filename
-    output_filename = os.path.join(output_dir, "channel_shorts_input.csv")
+    output_filename = os.path.join(output_dir, "channel_shorts_output.csv")
     
     # Initialize a list to hold all shorts data
     all_shorts_info = []

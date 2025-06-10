@@ -1,11 +1,51 @@
 import requests
 import csv
 import os
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
+import re
+
 
 # Define the API endpoint
 root = "https://ensembledata.com/apis"
 endpoint = "/youtube/channel/videos"
+
+def convert_relative_time_to_epoch(relative_time: str) -> int:
+   
+    now = datetime.now(timezone.utc)
+
+    time_map = {
+        'second': 'seconds',
+        'seconds': 'seconds',
+        'minute': 'minutes',
+        'minutes': 'minutes',
+        'hour': 'hours',
+        'hours': 'hours',
+        'day': 'days',
+        'days': 'days',
+        'week': 'weeks',
+        'weeks': 'weeks',
+        'month': 'days',   # Approximate months as 30 days
+        'months': 'days',
+        'year': 'days',    # Approximate years as 365 days
+        'years': 'days'
+    }
+
+    match = re.match(r"(\d+)\s+(second|seconds|minute|minutes|hour|hours|day|days|week|weeks|month|months|year|years)\s+ago", relative_time.strip())
+    if not match:
+        return int(now.timestamp())
+
+    value, unit = int(match.group(1)), match.group(2)
+
+    if unit in ['month', 'months']:
+        delta = timedelta(days=value * 30)
+    elif unit in ['year', 'years']:
+        delta = timedelta(days=value * 365)
+    else:
+        delta = timedelta(**{time_map[unit]: value})
+
+    target_time = now - delta
+    return int(target_time.timestamp())
+
 
 def read_params_from_csv(filename):
     """Read parameters from CSV file"""
@@ -37,13 +77,16 @@ def format_post_data(data):
     
     for video in videos:
         video_data = video.get("richItemRenderer", {}).get("content", {}).get("videoRenderer", {})
+
+        relative_time = video_data.get("publishedTimeText", {}).get("simpleText", "")
+        epoch_time = convert_relative_time_to_epoch(relative_time) if relative_time else None
         
         # Map video data to post structure
         post_info = {
             "post_id": video_data.get("videoId", ""),
             "post_url": f"https://www.youtube.com/watch?v={video_data.get('videoId', '')}",
             "post_text": video_data.get("title", {}).get("runs", [{}])[0].get("text", ""),
-            "post_time": video_data.get("publishedTimeText", {}).get("simpleText", ""),
+            "post_time": epoch_time,
             "profile_id": profile_id,
             "profile_name": profile_name,
             "profile_url": profile_url,
@@ -101,7 +144,7 @@ def save_posts_to_csv(posts_info, filename):
 
 def main():
     """Main function to orchestrate the data fetching and processing"""
-    params_list = read_params_from_csv("input.csv")
+    params_list = read_params_from_csv("youtube_channelVideos_input.csv")
     
     # Create output directory
     output_dir = "output"
