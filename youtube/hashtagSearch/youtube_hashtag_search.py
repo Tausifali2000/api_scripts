@@ -58,6 +58,8 @@ def format_video_data(data, hashtag):
             video_id = renderer.get("videoId", "")
             title = renderer.get("headline", {}).get("simpleText", "")
             view_count = renderer.get("viewCountText", {}).get("simpleText", "")
+            views_count = view_count.replace("views", "").replace("view", "").replace(",", "").strip()
+
             thumbnail_data = renderer.get("thumbnail", {}).get("thumbnails", [])
             
             # Get navigation endpoint for video URL
@@ -70,6 +72,8 @@ def format_video_data(data, hashtag):
             title_data = renderer.get("title", {}).get("runs", [{}])
             title = title_data[0].get("text", "") if title_data else ""
             view_count = renderer.get("viewCountText", {}).get("simpleText", "")
+            views_count = view_count.replace("views", "").replace("view", "").replace(",", "").strip()
+
             thumbnail_data = renderer.get("thumbnail", {}).get("thumbnails", [])
             
             # For videoRenderer, construct URL from video ID
@@ -89,7 +93,7 @@ def format_video_data(data, hashtag):
             "post_id": video_id,
             "post_url": video_url,
             "post_text": title,
-            "reaction_count": view_count,  # Using view count as reaction count
+            "post_views": views_count,  # Using view count as reaction count
         }
         formatted_videos.append(formatted_video)
     
@@ -106,7 +110,7 @@ def save_to_csv(videos_data, filename):
         "post_id", 
         "post_url", 
         "post_text",  
-        "reaction_count", 
+        "post_views", 
     ]
     
     with open(filename, "w", newline='', encoding='utf-8') as f:
@@ -117,12 +121,12 @@ def save_to_csv(videos_data, filename):
                 video_data["post_id"],
                 video_data["post_url"],
                 video_data["post_text"],
-                video_data["reaction_count"],
+                video_data["post_views"],
             ])
 
 def main():
     token = "kijGpadCYi0lZd8M"  # Replace with your actual token
-    input_csv = "input.csv"
+    input_csv = "youtube_hashtagSearch_input.csv"
     
     # Check if input file exists
     if not os.path.exists(input_csv):
@@ -163,7 +167,7 @@ def main():
         for i, video in enumerate(all_videos[:3]):  # Show first 3 videos
             print(f"Video {i+1}: {video['post_text'][:50]}...")
             print(f"  URL: {video['post_url']}")
-            print(f"  Views: {video['reaction_count']}")
+            print(f"  Views: {video['post_views']}")
 
 if __name__ == "__main__":
     main()

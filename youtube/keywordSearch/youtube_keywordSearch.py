@@ -10,7 +10,7 @@ load_dotenv()
 
 TOKEN = os.getenv("ENSEMBLE_DATA_TOKEN")
 
-csv_path = "youtube_hashtagSearch_input.csv"
+csv_path = "youtube_keywordSearch_input.csv"
 
 def convert_relative_time_to_epoch(relative_time: str) -> int:
    
@@ -141,21 +141,20 @@ def format_hashtagSearch(res, keyword):
 
     return formatted_posts
 
-def download_hashtag_search_results(user_dict):
-    output_dir = "youtube_hashtagSearch_output"
-    output_file = os.path.join(output_dir, "youtube_hashtagSearch_output.csv")
+def download_keyword_search_results(user_dict):
+    output_dir = "youtube_keywordSearch_output"
+    output_file = os.path.join(output_dir, "youtube_keywordSearch_output.csv")
 
-  
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
     all_results = []
 
     for row in user_dict:
-        keyword = row["name"]
+        keyword = row["keyword"]
         depth = int(row.get("depth", 1))  
 
-        print(f"Downloading hashtag search results for keyword: '{keyword}'")
+        print(f"Downloading keyword search results for keyword: '{keyword}'")
 
         res = req_youtube_hashtagSearch(keyword=keyword, depth=depth)
 
@@ -175,16 +174,15 @@ def download_hashtag_search_results(user_dict):
         df = pd.DataFrame(all_results)
 
         if os.path.exists(output_file):
-           
             df.to_csv(output_file, mode='a', index=False, encoding="utf-8", header=False)
             print(f"[APPEND] Appended results to '{output_file}'")
         else:
-          
             df.to_csv(output_file, index=False, encoding="utf-8")
             print(f"[CREATE] Created file and saved results to '{output_file}'")
     else:
         print("[INFO] No results to write.")
 
 
-user_dict = read_csv("youtube_hashtagSearch_input.csv")
-download_hashtag_search_results(user_dict)
+
+user_dict = read_csv(csv_path)
+download_keyword_search_results(user_dict)
