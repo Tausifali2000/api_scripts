@@ -2,9 +2,49 @@ import requests
 import csv
 import os
 import pandas as pd
+from datetime import datetime, timedelta, timezone
+import re
 
 # Define the API endpoint
 root = "https://ensembledata.com/apis"
+
+def convert_relative_time_to_epoch(relative_time: str) -> int:
+  
+   
+    now = datetime.now(timezone.utc)
+
+    time_map = {
+        'second': 'seconds',
+        'seconds': 'seconds',
+        'minute': 'minutes',
+        'minutes': 'minutes',
+        'hour': 'hours',
+        'hours': 'hours',
+        'day': 'days',
+        'days': 'days',
+        'week': 'weeks',
+        'weeks': 'weeks',
+        'month': 'days',   
+        'months': 'days',
+        'year': 'days',    
+        'years': 'days'
+    }
+
+    match = re.match(r"(\d+)\s+(second|seconds|minute|minutes|hour|hours|day|days|week|weeks|month|months|year|years)\s+ago", relative_time.strip())
+    if not match:
+        return int(now.timestamp())
+
+    value, unit = int(match.group(1)), match.group(2)
+
+    if unit in ['month', 'months']:
+        delta = timedelta(days=value * 30)
+    elif unit in ['year', 'years']:
+        delta = timedelta(days=value * 365)
+    else:
+        delta = timedelta(**{time_map[unit]: value})
+
+    target_time = now - delta
+    return int(target_time.timestamp())
 
 def read_csv(csv_path):
     try:
@@ -51,6 +91,10 @@ def format_video_data(data, hashtag):
             continue
             
         content = video["richItemRenderer"].get("content", {})
+
+        profile_id = ""
+        profile_name = ""
+        post_time = ""
         
         # Handle both reelItemRenderer and videoRenderer
         if "reelItemRenderer" in content:
@@ -60,7 +104,6 @@ def format_video_data(data, hashtag):
             view_count = renderer.get("viewCountText", {}).get("simpleText", "")
             views_count = view_count.replace("views", "").replace("view", "").replace(",", "").strip()
 
-            thumbnail_data = renderer.get("thumbnail", {}).get("thumbnails", [])
             
             # Get navigation endpoint for video URL
             nav_endpoint = renderer.get("navigationEndpoint", {})
@@ -73,17 +116,22 @@ def format_video_data(data, hashtag):
             title = title_data[0].get("text", "") if title_data else ""
             view_count = renderer.get("viewCountText", {}).get("simpleText", "")
             views_count = view_count.replace("views", "").replace("view", "").replace(",", "").strip()
+            post_time = renderer.get("publishedTimeText", {}).get("simpleText", "")
 
-            thumbnail_data = renderer.get("thumbnail", {}).get("thumbnails", [])
+        runs = renderer.get("ownerText", {}).get("runs", [])
+        if runs:
+                profile_id = runs[0].get("navigationEndpoint", {}).get("browseEndpoint", {}).get("browseId", "")
+                profile_name = runs[0].get("text", "")
+
+                video_url_path = f"/watch?v={video_id}" if video_id else ""
             
-            # For videoRenderer, construct URL from video ID
-            video_url_path = f"/watch?v={video_id}" if video_id else ""
+            
+           
             
         else:
             continue  # Skip if neither renderer type
         
-        # Extract thumbnail URL
-        thumbnail_url = thumbnail_data[0].get("url", "") if thumbnail_data else ""
+        
         
         # Create full video URL
         video_url = f"https://www.youtube.com{video_url_path}" if video_url_path else ""
@@ -93,7 +141,11 @@ def format_video_data(data, hashtag):
             "post_id": video_id,
             "post_url": video_url,
             "post_text": title,
-            "post_views": views_count,  # Using view count as reaction count
+            "post_time": convert_relative_time_to_epoch(post_time),
+            "profile_id": profile_id,
+            "profile_name": profile_name,
+            "profile_url": f"https://www.youtube.com/channel/{profile_id}" if profile_id else "",
+            "post_views": views_count,
         }
         formatted_videos.append(formatted_video)
     
@@ -111,6 +163,10 @@ def save_to_csv(videos_data, filename):
         "post_url", 
         "post_text",  
         "post_views", 
+        "post_time",
+        "profile_id",
+        "profile_name",
+        "profile_url",
     ]
     
     with open(filename, "w", newline='', encoding='utf-8') as f:
@@ -122,6 +178,10 @@ def save_to_csv(videos_data, filename):
                 video_data["post_url"],
                 video_data["post_text"],
                 video_data["post_views"],
+                video_data["post_time"],
+                video_data["profile_id"],
+                video_data["profile_name"],
+                video_data["profile_url"],
             ])
 
 def main():
