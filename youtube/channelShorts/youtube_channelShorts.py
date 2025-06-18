@@ -134,7 +134,6 @@ def format_channel_shorts(res):
                 "post_id": post_id,
                 "post_url": f"https://www.youtube.com/shorts/{post_id}",
                 "post_text": post_text,
-                "post_time": post_time,
                 "profile_id": profile_id,
                 "profile_name": profile_name,
                 "profile_url": profile_url,
@@ -154,7 +153,7 @@ def format_channel_shorts(res):
 
 def download_channelShorts_results(user_dict):
     output_dir = "youtube_channelShorts_output"
-    output_file = os.path.join(output_dir, "youtube_channelVideos_output.csv")
+    output_file = os.path.join(output_dir, "youtube_channelShorts_output.csv")
 
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)

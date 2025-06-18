@@ -10,40 +10,39 @@ root = "https://ensembledata.com/apis"
 endpoint = "/youtube/channel/videos"
 
 def convert_relative_time_to_epoch(relative_time: str) -> int:
-   
-    now = datetime.now(timezone.utc)
+    relative_time = relative_time.strip().lower()
+    match = re.match(
+        r"(\d+)\s+(second|seconds|minute|minutes|hour|hours|day|days|week|weeks|month|months|year|years)\s+ago",
+        relative_time
+    )
 
+    if not match:
+        print(f"[WARN] Unrecognized format: '{relative_time}', using current time as fallback.")
+        return int(datetime.now(timezone.utc).timestamp())
+
+    value = int(match.group(1))
+    unit = match.group(2)
+
+    # Approximate conversions
     time_map = {
-        'second': 'seconds',
-        'seconds': 'seconds',
-        'minute': 'minutes',
-        'minutes': 'minutes',
-        'hour': 'hours',
-        'hours': 'hours',
-        'day': 'days',
-        'days': 'days',
-        'week': 'weeks',
-        'weeks': 'weeks',
-        'month': 'days',   # Approximate months as 30 days
-        'months': 'days',
-        'year': 'days',    # Approximate years as 365 days
-        'years': 'days'
+        "second": timedelta(seconds=value),
+        "seconds": timedelta(seconds=value),
+        "minute": timedelta(minutes=value),
+        "minutes": timedelta(minutes=value),
+        "hour": timedelta(hours=value),
+        "hours": timedelta(hours=value),
+        "day": timedelta(days=value),
+        "days": timedelta(days=value),
+        "week": timedelta(weeks=value),
+        "weeks": timedelta(weeks=value),
+        "month": timedelta(days=value * 30),   # Approximate
+        "months": timedelta(days=value * 30),
+        "year": timedelta(days=value * 365),   # Approximate
+        "years": timedelta(days=value * 365),
     }
 
-    match = re.match(r"(\d+)\s+(second|seconds|minute|minutes|hour|hours|day|days|week|weeks|month|months|year|years)\s+ago", relative_time.strip())
-    if not match:
-        return int(now.timestamp())
-
-    value, unit = int(match.group(1)), match.group(2)
-
-    if unit in ['month', 'months']:
-        delta = timedelta(days=value * 30)
-    elif unit in ['year', 'years']:
-        delta = timedelta(days=value * 365)
-    else:
-        delta = timedelta(**{time_map[unit]: value})
-
-    target_time = now - delta
+    delta = time_map.get(unit, timedelta())
+    target_time = datetime.now(timezone.utc) - delta
     return int(target_time.timestamp())
 
 
@@ -90,7 +89,7 @@ def format_post_data(data):
             "profile_id": profile_id,
             "profile_name": profile_name,
             "profile_url": profile_url,
-            "reaction_count": extract_numeric_value(video_data.get("viewCountText", {}).get("simpleText", "0")),
+            "post_views": extract_numeric_value(video_data.get("viewCountText", {}).get("simpleText", "0")),
         }
         posts_info.append(post_info)
     
@@ -125,7 +124,7 @@ def save_posts_to_csv(posts_info, filename):
         return
     
     headers = ["post_id", "post_url", "post_text", "post_time", "profile_id", 
-               "profile_name", "profile_url", "reaction_count"]
+               "profile_name", "profile_url", "post_views"]
     
     with open(filename, "w", newline='', encoding='utf-8') as f:
         writer = csv.writer(f)
@@ -139,7 +138,7 @@ def save_posts_to_csv(posts_info, filename):
                 post["profile_id"],
                 post["profile_name"],
                 post["profile_url"],
-                post["reaction_count"],
+                post["post_views"],
             ])
 
 def main():
