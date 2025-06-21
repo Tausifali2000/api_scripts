@@ -114,6 +114,10 @@ def format_channel_streams(res):
             
             
             post_text = video.get("title", {}).get("runs", [{}])[0].get("text", "")
+            published_text = video.get("publishedTimeText", {}).get("simpleText", "")
+            relative_time_clean = re.sub(r"^(Streamed|Premiered|Uploaded)\s+", "", published_text)
+            
+            post_time_epoch = convert_relative_time_to_epoch(relative_time_clean)
 
             # post_views = video.get("viewCountText", {}).get("runs", [{}])[0].get("text", "")
 
@@ -121,6 +125,7 @@ def format_channel_streams(res):
                 "post_id": post_id,
                 "post_url": f"https://www.youtube.com/shorts/{post_id}",
                 "post_text": post_text,
+                "post_time":  post_time_epoch,
                 "profile_id": profile_id,
                 "profile_name": profile_name,
                 "profile_url": profile_url,
